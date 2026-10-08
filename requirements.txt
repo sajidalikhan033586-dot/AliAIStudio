@@ -1,6 +1,1 @@
-# All libraries are FREE. Install with:  pip install -r requirements.txt
-customtkinter>=5.2.0   # modern, lightweight GUI (windows, buttons, sliders)
-pillow>=10.0.0         # images (logo)
-yt-dlp>=2024.8.6       # YouTube/TikTok downloader (free, self-updating)
-imageio-ffmpeg>=0.4.9  # static ffmpeg binary via pip (no separate install needed)
-tkinterdnd2>=0.8.0     # drag & drop files (optional: app works without it too)
+tkinterdnd2     # drag & drop files (optional: app works without it too)
