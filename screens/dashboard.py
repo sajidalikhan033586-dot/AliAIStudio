@@ -38,6 +38,9 @@ class DashboardScreen(ctk.CTkFrame):
                      text_color=self.t["text"]).pack(side="left", padx=8)
         ctk.CTkButton(header, text="Keys", width=80, fg_color=self.t["panel"],
                       text_color=self.t["text"], command=app.show_keys).pack(side="right")
+        ctk.CTkButton(header, text="⚙", width=40, fg_color=self.t["panel"],
+                      text_color=self.t["text"],
+                      command=app.show_settings).pack(side="right", padx=(0, 8))
 
         steps = ctk.CTkLabel(self, text="Step 1: Add Video      →      Step 2: Generate Clips      →      Step 3: Export",
                              font=("Segoe UI", 12), text_color=self.t["text_dim"])
@@ -159,7 +162,15 @@ class DashboardScreen(ctk.CTkFrame):
                                      selected_hover_color=t["accent_hover"],
                                      unselected_color=t["bg"], text_color=t["text"],
                                      command=self._on_fmt_change)
-        seg.pack(fill="x", padx=18, pady=(0, 18))
+        seg.pack(fill="x", padx=18, pady=(0, 12))
+
+        # English captions (auto-translate)
+        self.tr_var = ctk.BooleanVar(value=bool(self.cfg.get("translate_en", True)))
+        ctk.CTkSwitch(right, text="English captions", variable=self.tr_var,
+                      fg_color=t["bg"], progress_color=t["accent"],
+                      text_color=t["text"],
+                      command=self._on_translate_change).pack(anchor="w", padx=18,
+                                                             pady=(0, 12))
 
         ctk.CTkButton(right, text="✨  Find Viral Clips", height=50,
                       font=("Segoe UI", 16, "bold"),
@@ -182,6 +193,10 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _on_fmt_change(self, _):
         self.cfg["clip_format"] = self.fmt_var.get()
+        save_config(self.cfg)
+
+    def _on_translate_change(self):
+        self.cfg["translate_en"] = bool(self.tr_var.get())
         save_config(self.cfg)
 
     def _on_drop(self, event):
@@ -254,21 +269,7 @@ class DashboardScreen(ctk.CTkFrame):
         if not self.video_path:
             self._set_status("Add a video first (file or link).", error=True)
             return
-        popup = ctk.CTkToplevel(self)
-        popup.title("Coming next")
-        popup.geometry("440x220")
-        popup.configure(fg_color=self.t["bg"])
-        popup.grab_set()
-        ctk.CTkLabel(popup, text="Video is ready!",
-                     font=("Segoe UI", 18, "bold"), text_color=self.t["text"]).pack(pady=(28, 6))
-        ctk.CTkLabel(popup,
-                     text=f"{self.video_info['duration_text']} video loaded.\n"
-                          f"Settings: {self.clips_var.get()} clips × {self.len_var.get()}s, {self.fmt_var.get()}.\n\n"
-                          "AI clipping (transcription + viral moments)\ncomes in Module 3.",
-                     font=("Segoe UI", 13), text_color=self.t["text_dim"]).pack(pady=6)
-        ctk.CTkButton(popup, text="OK", width=120, fg_color=self.t["accent"],
-                      text_color=self.t["button_text"],
-                      command=popup.destroy).pack(pady=10)
+        self.app.show_analyze(self.video_path)
 
     # ================= helpers =================
     def _set_status(self, msg, error=False):

@@ -1,32 +1,46 @@
 # Ali AI Studio — Free AI Clipper for Creators
 
-**Module 1:** project setup + welcome screen + Gemini API key manager + error logging.
-**Module 2:** dashboard + video input (computer file / YouTube link / TikTok link) + clip settings.
+**v0.3.0 — the full app:** video in → AI finds viral moments → karaoke
+captions → optional AI voiceover → 9:16/16:9 clips out.
+100% free, offline-first.
 
-## Run it (Windows)
+## Easiest way (no Python needed)
 
-**Option A — double click (easiest):** double-click `run.bat`.
-It checks Python, installs the free libraries, and starts the app.
+Every push to this repo auto-builds a ready **AliAIStudio.exe**:
+**Actions tab → latest build → Artifacts → AliAIStudio-Windows.**
+Download, extract, double-click. (Windows shows a SmartScreen warning for
+unsigned apps — More info → Run anyway.)
 
-**Option B — command line:**
+## Run from source (Windows)
+
+You need **Python 3.10 or newer** from [python.org](https://www.python.org/downloads/).
+During install, tick **"Add python.exe to PATH"**. Then:
 ```
 pip install -r requirements.txt
 python app.py
 ```
 
-You need **Python 3.10 or newer** from [python.org](https://www.python.org/downloads/).
-During install, tick **"Add python.exe to PATH"**.
-
-## How it works (Module 2)
+## How it works
 
 1. **Add a video** — drag & drop / Browse from your computer, or paste a
    YouTube / TikTok link (it downloads automatically, max 720p to stay fast).
-2. **Adjust settings** — number of clips (default 2), clip length
-   (default 60s, up to 3 min), format (9:16 default, 16:9 optional).
-3. **Find Viral Clips** — AI clipping arrives in Module 3.
+2. **Adjust settings** — clips (default 2), length (default 60s, up to 3 min),
+   format (9:16 default, 16:9 optional), English captions on/off.
+3. **Find Viral Clips** — the app transcribes speech offline, finds the best
+   moments with scores + reasons, and lets you pick which ones to keep.
+4. **Make it yours** — karaoke caption styles, AI voiceover (US male/female
+   with preview), keep / duck / replace the original audio.
+5. **Generate** — exports 1080p MP4 clips to your Clips folder.
 
-If a TikTok link fails (TikTok sometimes blocks downloaders), the app tells
-you to download the video and add it from your computer instead.
+Notes:
+- First transcription downloads a small speech model (~75MB, one-time).
+  After that, everything works **offline** (voiceover needs internet).
+- If a TikTok link fails (TikTok sometimes blocks downloaders), the app
+  tells you to download the video and add it from your computer instead.
+
+**Smart Mode (optional):** add a free Gemini API key and the app sends only
+the transcript *text* (never your video) to Google for better moment picks.
+Without a key, everything still works in Free Mode.
 
 ## If something goes wrong
 
@@ -51,9 +65,7 @@ AliAIStudio/
 ├── app.py            ← start here (main window)
 ├── run.bat           ← double-click starter for Windows
 ├── requirements.txt  ← free libraries
-├── screens/          ← welcome, API keys, dashboard   (what you SEE)
-├── core/             ← config, keys, logger, download, media (what WORKS)
+├── screens/          ← welcome, keys, dashboard, analyze, settings (what you SEE)
+├── core/             ← transcribe, moments, captions, voiceover, render, pipeline (what WORKS)
 └── assets/           ← logo, Theme A (Midnight Cyan)
 ```
-
-Module 3 will add AI transcription + viral-moment detection.

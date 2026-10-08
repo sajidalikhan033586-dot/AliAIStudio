@@ -1,7 +1,7 @@
 """Theme A - Midnight Cyan (chosen by the user in Phase 1)."""
 
 APP_NAME = "Ali AI Studio"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 
 THEMES = {
     "midnight_cyan": {

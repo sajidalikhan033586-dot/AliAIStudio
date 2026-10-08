@@ -1,5 +1,5 @@
 """
-Ali AI Studio - Free AI Clipper for Creators (Module 2)
+Ali AI Studio - Free AI Clipper for Creators (v0.3.0)
 Entry point. Welcome screen on first run, dashboard afterwards.
 """
 import sys
@@ -12,6 +12,8 @@ from core.logger import setup_logger, show_error_dialog
 from screens.welcome import WelcomeScreen
 from screens.keys_screen import KeysScreen
 from screens.dashboard import DashboardScreen, DND_AVAILABLE
+from screens.analyze_screen import AnalyzeScreen
+from screens.settings_screen import SettingsScreen
 
 # Drag & drop is optional: if tkinterdnd2 is missing, click-to-browse still works.
 if DND_AVAILABLE:
@@ -28,10 +30,12 @@ class AliAIStudioApp(*_Base):
         self.dnd_enabled = DND_AVAILABLE
         self.config = load_config()
         self.theme = THEMES[self.config.get("theme", "midnight_cyan")]
+        # filled during analysis; used by the render pipeline for captions
+        self.transcript = {"segments": [], "language": "en", "duration": 0}
 
         self.title(f"{APP_NAME} v{APP_VERSION}")
-        self.geometry("1020x680")
-        self.minsize(900, 620)
+        self.geometry("1020x700")
+        self.minsize(900, 640)
         self.configure(fg_color=self.theme["bg"])
 
         ctk.set_appearance_mode("dark")
@@ -42,10 +46,10 @@ class AliAIStudioApp(*_Base):
         else:
             self.show_dashboard()
 
-    def _switch(self, frame_cls):
+    def _switch(self, frame_cls, *args):
         if self.current_frame is not None:
             self.current_frame.destroy()
-        self.current_frame = frame_cls(self, self)
+        self.current_frame = frame_cls(self, self, *args)
         self.current_frame.pack(fill="both", expand=True)
 
     def show_welcome(self):
@@ -56,6 +60,12 @@ class AliAIStudioApp(*_Base):
 
     def show_dashboard(self):
         self._switch(DashboardScreen)
+
+    def show_analyze(self, video_path: str):
+        self._switch(AnalyzeScreen, video_path)
+
+    def show_settings(self):
+        self._switch(SettingsScreen)
 
     def finish_setup(self):
         """Called when the user picks Free Mode or continues from the keys screen."""
