@@ -82,14 +82,22 @@ def _run(app, video_path, moments, options,
             ass_path = tmpdir / f"{base}.ass"
             ass_path.write_text(ass_text, encoding="utf-8")
 
-        # 2. voiceover
+        # 2. voiceover (skipped when the moment has no speech text,
+        #    e.g. energy-picked music parts - original audio is kept)
         vo_path = None
         voice = options.get("voiceover")
+        vo_text = (m.get("text") or "").strip()
+        if voice and not vo_text:
+            status_cb(f"Clip {i+1}/{total}: no speech here - keeping original audio.")
+            voice = None
+        audio_mode = options.get("audio_mode", "keep")
+        if voice is None:
+            audio_mode = "keep"
         if voice:
             _check(cancel_event)
             status_cb(f"Clip {i+1}/{total}: generating AI voice...")
             vo_path = str(tmpdir / f"{base}_vo.mp3")
-            synthesize(m.get("text", ""), voice, vo_path,
+            synthesize(vo_text, voice, vo_path,
                        cancel_event=cancel_event)
 
         # 3. render
@@ -104,7 +112,7 @@ def _run(app, video_path, moments, options,
         render_clip(video_path, m["start"], m["end"], out_path, fmt=fmt,
                     ass_path=str(ass_path) if ass_path else None,
                     voiceover_path=vo_path,
-                    audio_mode=options.get("audio_mode", "keep"),
+                    audio_mode=audio_mode,
                     progress_cb=_pc, cancel_event=cancel_event,
                     status_cb=status_cb)
         out_files.append(out_path)

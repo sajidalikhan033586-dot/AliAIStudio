@@ -7,11 +7,18 @@ Two modes:
 
 Smart Mode falls back to Free Mode automatically if the key fails, and the
 app says so out loud (never a silent switch).
+
+NO-SPEECH FALLBACK: if the video has little/no speech (music reels etc.),
+the app finds the most ENERGETIC parts from the audio loudness instead -
+so no video ever comes back empty.
 """
 import json
 import re
+import subprocess
 import urllib.request
 import urllib.error
+
+from core.media import get_ffmpeg_exe
 
 GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
               "gemini-2.0-flash:generateContent")
@@ -200,17 +207,127 @@ def _parse_smart(text, segments) -> list:
 
 
 def find_moments(segments, n_clips=2, clip_len=60, smart=False,
-                 key_manager=None, status_cb=None) -> tuple:
+                 key_manager=None, status_cb=None,
+                 video_path=None, duration=0) -> tuple:
     """
     Returns (moments, notice). notice is "" normally, or a human message
-    when Smart Mode fell back to Free Mode.
+    when Smart Mode fell back to Free Mode, or when the no-speech
+    energy fallback was used.
+    Chain: speech heuristics -> audio energy -> even time split.
+    Never returns empty for a valid video.
     """
-    if smart and key_manager is not None and key_manager.has_keys():
+    total_speech = sum(s["end"] - s["start"] for s in segments)
+    has_speech = len(segments) >= 3 and total_speech >= 15
+
+    if has_speech:
+        if smart and key_manager is not None and key_manager.has_keys():
+            try:
+                return find_moments_smart(segments, n_clips, clip_len,
+                                          key_manager, status_cb)
+            except Exception:
+                pass  # fall through to Free Mode with notice below
+            return (find_moments_free(segments, n_clips, clip_len),
+                    "Smart Mode had a problem - used Free Mode instead.")
+        return find_moments_free(segments, n_clips, clip_len), ""
+
+    # ---- no clear speech: pick the most energetic parts ----
+    say = status_cb or (lambda _t: None)
+    say("No clear speech found - finding the most energetic parts...")
+    dur = duration or (max((s["end"] for s in segments), default=0))
+    moments = energy_moments(video_path, dur, n_clips, clip_len) if video_path else []
+    if not moments and dur > 0:
+        moments = time_split_moments(dur, n_clips, clip_len)
+    notice = ("No clear speech in this video - picked the most energetic "
+              "parts instead.")
+    return moments, notice
+
+
+# ================= no-speech fallbacks =================
+
+def energy_curve(video_path: str, bin_sec: float = 2.0) -> list:
+    """Loudness over time: [(bin_start_sec, avg_lufs), ...]. [] if unavailable."""
+    try:
+        exe = get_ffmpeg_exe()
+        r = subprocess.run(
+            [exe, "-hide_banner", "-nostats", "-i", video_path,
+             "-map", "0:a", "-filter:a", "ebur128=framelog=info",
+             "-f", "null", "-"],
+            capture_output=True, text=True, timeout=300)
+    except Exception:
+        return []
+    bins: dict = {}
+    for line in (r.stderr or "").splitlines():
+        m1 = re.search(r"t:\s*([\d.]+)", line)
+        m2 = re.search(r"\bM:\s*(-?[\d.]+)", line)
+        if not (m1 and m2):
+            continue
         try:
-            return find_moments_smart(segments, n_clips, clip_len,
-                                      key_manager, status_cb)
-        except Exception:
-            pass  # fall through to Free Mode with notice below
-        return (find_moments_free(segments, n_clips, clip_len),
-                "Smart Mode had a problem - used Free Mode instead.")
-    return find_moments_free(segments, n_clips, clip_len), ""
+            t, db = float(m1.group(1)), float(m2.group(1))
+        except ValueError:
+            continue
+        if db < -70:  # silence
+            continue
+        bins.setdefault(int(t // bin_sec), []).append(db)
+    return sorted((b * bin_sec, sum(v) / len(v)) for b, v in bins.items())
+
+
+def _lufs_to_score(db: float) -> float:
+    # momentary LUFS ~ -15 (loud) .. -45 (quiet) -> 1..10
+    return round(max(1.0, min(10.0, 1.0 + (db + 50.0) / 4.0)), 1)
+
+
+def energy_moments(video_path: str, duration: float,
+                   n_clips: int = 2, clip_len: float = 60) -> list:
+    """Pick highest-energy windows. Works for music/dance reels."""
+    if not video_path or duration <= 0:
+        return []
+    clip_len = min(clip_len, duration)
+    curve = energy_curve(video_path)
+    if not curve:
+        return time_split_moments(duration, n_clips, clip_len)
+    bin_sec = 2.0
+    win_bins = max(1, int(clip_len // bin_sec))
+    cands = []
+    for i in range(len(curve) - win_bins + 1):
+        window = [db for _, db in curve[i:i + win_bins]]
+        avg = sum(window) / len(window)
+        cands.append((_lufs_to_score(avg), curve[i][0]))
+    cands.sort(reverse=True)
+    picked, out = [], []
+    for score, s in cands:
+        e = min(duration, s + clip_len)
+        if e - s < 10:
+            continue
+        if any(not (e < p[0] + 5 or s > p[1] - 5) for p in picked):
+            continue
+        picked.append((s, e))
+        out.append({"start": round(s, 1), "end": round(e, 1),
+                    "score": score, "title": "Energetic moment",
+                    "reason": "high energy part (music/beat)", "text": ""})
+        if len(out) >= n_clips:
+            break
+    out.sort(key=lambda c: c["start"])
+    return out or time_split_moments(duration, n_clips, clip_len)
+
+
+def time_split_moments(duration: float, n_clips: int = 2,
+                       clip_len: float = 60) -> list:
+    """Last resort: split the video into even parts. Never empty."""
+    if duration <= 0:
+        return []
+    clip_len = min(clip_len, duration)
+    if duration < 10:
+        return [{"start": 0.0, "end": round(duration, 1), "score": 5.0,
+                 "title": "Full clip", "reason": "short video", "text": ""}]
+    n = min(n_clips, max(1, int(duration // max(10.0, clip_len / 2))))
+    part = duration / n
+    out = []
+    for i in range(n):
+        s = round(i * part, 1)
+        e = round(min(duration, s + clip_len), 1)
+        if e - s < 5:
+            continue
+        out.append({"start": s, "end": e, "score": 5.0,
+                    "title": f"Part {i + 1}", "reason": "even split",
+                    "text": ""})
+    return out

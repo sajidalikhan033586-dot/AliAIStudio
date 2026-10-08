@@ -121,7 +121,9 @@ class AnalyzeScreen(ctk.CTkFrame):
             length = int(self.cfg.get("clip_length", 60))
             moments, notice = find_moments(
                 result["segments"], n_clips=n, clip_len=length,
-                smart=smart, key_manager=km, status_cb=self._say)
+                smart=smart, key_manager=km, status_cb=self._say,
+                video_path=self.video_path,
+                duration=result.get("duration", 0))
             if self.cancel_event.is_set():
                 return
             self.moments = moments
@@ -151,10 +153,13 @@ class AnalyzeScreen(ctk.CTkFrame):
                          wraplength=760, justify="left").pack(pady=(0, 6))
 
         if not self.moments:
-            ctk.CTkLabel(rf, text="No strong moments found in this video.\n"
-                                  "Try a video with more speech.",
+            ctk.CTkLabel(rf, text="Could not find any clips in this video.\n"
+                                  "The file may be damaged - try another video.",
                          font=("Segoe UI", 14),
                          text_color=self.t["text_dim"]).pack(pady=40)
+            ctk.CTkButton(rf, text="← Back to Dashboard", width=200,
+                          fg_color=self.t["panel"], text_color=self.t["text"],
+                          command=self._on_back).pack(pady=10)
             return
 
         ctk.CTkLabel(rf, text=f"{len(self.moments)} viral moments found - "
