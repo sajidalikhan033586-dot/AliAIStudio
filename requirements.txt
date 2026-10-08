@@ -1,0 +1,3 @@
+# All libraries are FREE. Install with:  pip install -r requirements.txt
+customtkinter>=5.2.0   # modern, lightweight GUI (windows, buttons, sliders)
+pillow>=10.0.0         # images (logo)
