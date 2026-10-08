@@ -3,6 +3,8 @@ import customtkinter as ctk
 from pathlib import Path
 from PIL import Image
 
+from assets.theme import APP_VERSION
+
 
 class WelcomeScreen(ctk.CTkFrame):
     def __init__(self, parent, app):
@@ -44,7 +46,7 @@ class WelcomeScreen(ctk.CTkFrame):
         guide.pack(pady=12)
         guide.bind("<Button-1>", lambda e: self.show_guide())
 
-        ctk.CTkLabel(self, text="v0.1.0   •   100% free   •   Your videos never leave your PC",
+        ctk.CTkLabel(self, text=f"v{APP_VERSION}   •   100% free   •   Your videos never leave your PC",
                      font=("Segoe UI", 11), text_color=t["text_dim"]).pack(side="bottom", pady=18)
 
     def show_guide(self):

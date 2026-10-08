@@ -44,12 +44,19 @@ class KeysScreen(ctk.CTkFrame):
         btn_row.pack(pady=14)
         ctk.CTkButton(btn_row, text="← Back", width=130, height=42,
                       fg_color=t["panel"], hover_color="#1A2B47", text_color=t["text"],
-                      command=app.show_welcome).pack(side="left", padx=8)
+                      command=self._go_back).pack(side="left", padx=8)
         ctk.CTkButton(btn_row, text="Continue →", width=200, height=42,
                       font=("Segoe UI", 14, "bold"),
                       fg_color=t["accent"], hover_color=t["accent_hover"],
                       text_color=t["button_text"],
                       command=app.finish_setup).pack(side="left", padx=8)
+
+    def _go_back(self):
+        # After setup, Back returns to the dashboard; on first run, to welcome.
+        if self.app.config.get("first_run", True):
+            self.app.show_welcome()
+        else:
+            self.app.show_dashboard()
 
     def save_key(self):
         key = self.entry.get().strip()
