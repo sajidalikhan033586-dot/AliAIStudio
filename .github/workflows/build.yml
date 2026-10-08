@@ -1,0 +1,53 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --upgrade pip
+          python -m pip install --retries 5 -r requirements.txt
+          python -m pip install pyinstaller
+
+      - name: Verify dependencies installed
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -c "import customtkinter, PIL, yt_dlp, imageio_ffmpeg; print('all deps OK')"
+
+      - name: Build EXE with PyInstaller
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m PyInstaller --noconfirm --onefile --windowed --name AliAIStudio --exclude-module tkinterdnd2 --collect-all imageio_ffmpeg --add-data "assets;assets" app.py
+
+      - name: Verify EXE size
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $size = (Get-Item dist/AliAIStudio.exe).Length / 1MB
+          Write-Output "EXE size: $([math]::Round($size,1)) MB"
+          if ($size -lt 25) { throw "EXE too small - libraries missing from bundle!" }
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: AliAIStudio-Windows
+          path: dist/AliAIStudio.exe
