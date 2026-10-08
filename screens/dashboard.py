@@ -61,7 +61,6 @@ class DashboardScreen(ctk.CTkFrame):
         tabs = ctk.CTkTabview(left, fg_color=t["panel"],
                               segmented_button_fg_color=t["bg"],
                               segmented_button_selected_color=t["accent"],
-                              segmented_button_selected_text_color=t["button_text"],
                               text_color=t["text"])
         tabs.pack(fill="x", padx=14, pady=12)
         for name in ("Computer", "YouTube", "TikTok"):
